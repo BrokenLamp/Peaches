@@ -5,6 +5,11 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+#[macro_use]
+extern crate peaches_macros;
+
+pub use peaches_macros::component;
+
 pub struct State {
     map: HashMap<i32, Box<dyn Any>>,
     pos: i32,
@@ -73,22 +78,7 @@ impl<'a, T> FnOnce<(T,)> for StateSetter<'a, T> {
 }
 
 pub trait Component {
-    fn render(&mut self, state: State, children: Vec<&mut dyn Component>);
-}
-
-#[macro_export]
-macro_rules! component {
-    (
-        $name:ident ($($prop_name:ident : $prop_type:ty),*) => $block:block
-    ) => {
-        struct $name {
-            $( $prop_name: $prop_type );*
-        }
-
-        impl Component for $name {
-            fn render(&mut self, state: State, children: Vec<&mut dyn Component>) $block
-        }
-    };
+    fn render(&mut self, state: &mut State) -> Option<Box<dyn Component>>;
 }
 
 #[macro_export]
@@ -102,18 +92,33 @@ macro_rules! use_state {
 macro_rules! com {
     (
         < $name:ident $($prop_name:ident = { $prop_value:expr } )* > {
-            $($child:expr)*
+            $( $child:expr )*
         }
     ) => {
-        {
-            let component = $name {
-                $($prop_name: $prop_value),*
-            };
-            let children = vec![$($child),*];
-            component.render(use_state!(State::new(None)), children);
-
+        Some(Box::new({
+            let component = $name::new(vec![$($child),*]);
+            $( component.$prop_name = Some($prop_value); )*
+            component
+        }))
+    };
+    (
+        < > {
+            $( $child:expr )*
         }
-    }
+    ) => {
+        com!(<PeachesFragment> {
+            $( $child:expr )*
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! prop {
+    (
+        $name:ident
+    ) => {
+        self.$name
+    };
 }
 
 struct StyleRule {
@@ -142,9 +147,9 @@ macro_rules! use_effect {
 #[macro_export]
 macro_rules! make_styles {
     (
-        $name:ident ($($prop_name:ident : $prop_type:ty),*, ) => {
+        $name:ident ($($prop_name:ident : $prop_type:ty,)* ) => {
             $($selector_name:ident : {
-                $($property_name:ident : $property_value:expr);*;
+                $($property_name:ident : $property_value:expr,)*
             })*
         }
     ) => {
@@ -169,53 +174,58 @@ macro_rules! make_styles {
 #[macro_export]
 macro_rules! use_styles {
     (
-        $struct:ty |> $($prop_value:expr),*
+        $struct:ty [ $($prop_value:expr),* ]
     ) => {
         <$struct>::new($($prop_value),*)
     }
 }
 
-component!(App(bob: i32) => {
-    let (bananas, set_bananas) = use_state!(42);
-    let styles = use_styles!(AppStyles |> true);
+component!(Div (
+    class: StyleRule,
+    text: &String
+) => {
 
-    use_effect!(bob, styles => {
-        let interval = set_interval!({}, 1000);
-        clear_effect! {
-            clear_interval!(interval);
-        }
-    });
-
-    com!(<Div class={styles.root}> {
-        com!(<Div> {
-            com!(<Text value={format!("Bananas: {}", bananas)}> {})
-        })
-        com!(<Div> {
-            com!(<Text value={"Add banana".into()}> {})
-        })
-    })
+    None
 });
 
-component!(Div(class: StyleRule) => {
-
+component!(Text(
+    value: String,
+    class: StyleRule,
+) => {
+    com!(<Div text={props.value?} class={props.class?}> {})
 });
 
-component!(Text(value: String) => {
+component!(App() => {
+    let styles = use_styles!(AppStyles ["#37474F", "#009688"]);
 
+    <Div class={styles.root}>
+        <Text value={"Hello World!"} class={styles.hello_world} />
+    </Div>
 });
+
 make_styles!(AppStyles(
-    is_collapsed: bool,
+    bg: &'static str,
+    fg: &'static str,
 ) => {
     root: {
-        border_radius: 5;
+        display: "flex",
+        width: "100vw",
+        height: "100vh",
+        justify_content: "center",
+        align_items: "center",
+        background_color: bg,
     }
-    sub: {
-        display: if is_collapsed { "none" } else { "block" };
+    hello_world: {
+        font_size: "32px",
+        color: fg,
     }
 });
 
 #[test]
 fn test() {
     let state = State::new(None);
-    com!(<App bob={17}> {});
+    let stage = com!(<Div> {
+        com!(<App> {})
+    });
+    stage.unwrap().render(&mut state);
 }

@@ -1,0 +1,16 @@
+[package]
+name = "peaches-macros"
+version = "0.1.0"
+description = "Procedural macros for peaches"
+authors = ["Brandon Dyer <brandondyer64@gmail.com>"]
+readme = "README.md"
+license = "MIT"
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.7"
+quote = "1.0.2"
+syn = { version = "1.0.13", features = ["full"] }
