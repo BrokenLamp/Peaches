@@ -2,14 +2,14 @@
 #![feature(proc_macro_diagnostic)]
 
 extern crate proc_macro;
-use self::proc_macro::{TokenStream, TokenTree};
+use self::proc_macro::{Punct, Spacing, TokenStream, TokenTree};
 
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::spanned::Spanned;
 use syn::{
-    parenthesized, parse::Peek, parse_macro_input, punctuated::Punctuated, Expr, Field,
-    FieldsNamed, FnArg, Ident, ToTokens, Token, Type, Visibility,
+    parenthesized, parse::Peek, parse_macro_input, punctuated::Punctuated, token, Expr, Field,
+    FieldsNamed, FnArg, Ident, Token, Type, Visibility,
 };
 
 struct Component {
@@ -26,7 +26,6 @@ impl Parse for Component {
         let params: Fields = content.parse()?;
         input.parse::<Token![=>]>()?;
         let init: Expr = input.parse()?;
-        input.parse::<Token![;]>()?;
         Ok(Component { name, params, init })
     }
 }
@@ -37,14 +36,12 @@ pub fn component(input: TokenStream) -> TokenStream {
 
     let result = quote! {
         pub struct #name {
-            $($prop_name: Option<$prop_type>,)*
             children: Vec<Option<Box<dyn Component>>>,
         }
 
         impl #name {
             pub fn new(children: Vec<Option<Box<dyn Component>>>) -> $name {
                 #name {
-                    #params
                     children: Vec::new(),
                 }
             }
@@ -92,5 +89,3 @@ impl Parse for Fields {
         Ok(Fields { segments })
     }
 }
-
-impl ToTokens for Fields {}

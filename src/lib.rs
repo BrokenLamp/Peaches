@@ -180,7 +180,7 @@ macro_rules! use_styles {
     }
 }
 
-component!(Div (
+component!(Div(
     class: StyleRule,
     text: &String
 ) => {
@@ -190,20 +190,53 @@ component!(Div (
 
 component!(Text(
     value: String,
-    class: StyleRule,
+    class: StyleRule
 ) => {
-    com!(<Div text={props.value?} class={props.class?}> {})
+    <Div text={props.value?} class={props.class?} />
 });
 
+// Stateless component
 component!(App() => {
-    let styles = use_styles!(AppStyles ["#37474F", "#009688"]);
+    let styles = use_styles!(App ["#37474F", "#009688"]);
 
     <Div class={styles.root}>
         <Text value={"Hello World!"} class={styles.hello_world} />
     </Div>
 });
 
-make_styles!(AppStyles(
+// Stateful component
+component!(App(
+    color: String,
+) => {
+    let styles = use_styles!(App [props.color?])
+    let is_clicked = use_state!(false);
+
+    let text_component = if is_clicked {
+        <Text value={"You Clicked!"} />
+    } else {
+        <Text value={"Click the button"} />
+    };
+
+    <Div class={styles.root}>
+        {text_component}
+        <Button value={"Click Me!"} class={styles.button} on_click={|| set!(is_clicked => true)} />
+    </Div>
+});
+
+// Custom props
+component!(MaterialButton(
+    color: String,
+    text: String,
+    on_click: DomEventCallback,
+) => {
+    let styles = use_styles!(MaterialButtonStyles [color]);
+
+    <Button class={styles.root} on_click?={props.on_click}>
+        <Text value={props.text?} />
+    </Button>
+});
+
+make_styles!(App(
     bg: &'static str,
     fg: &'static str,
 ) => {
@@ -222,10 +255,4 @@ make_styles!(AppStyles(
 });
 
 #[test]
-fn test() {
-    let state = State::new(None);
-    let stage = com!(<Div> {
-        com!(<App> {})
-    });
-    stage.unwrap().render(&mut state);
-}
+fn test() {}
