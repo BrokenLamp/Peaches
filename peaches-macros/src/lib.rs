@@ -12,23 +12,8 @@ use syn::{
     FieldsNamed, FnArg, Ident, Token, Type, Visibility,
 };
 
-struct Component {
-    name: Ident,
-    params: Fields,
-    init: Expr,
-}
-
-impl Parse for Component {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let name: Ident = input.parse()?;
-        let content;
-        parenthesized!(content in input);
-        let params: Fields = content.parse()?;
-        input.parse::<Token![=>]>()?;
-        let init: Expr = input.parse()?;
-        Ok(Component { name, params, init })
-    }
-}
+mod component;
+use component::Component;
 
 #[proc_macro]
 pub fn component(input: TokenStream) -> TokenStream {
@@ -47,45 +32,12 @@ pub fn component(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl Component for $name {
+        impl Component for #name {
             fn render(&mut self, state: &mut State) -> Option<Box<dyn Component>> {
-                $block(self, state)
+                // $block(self, state)
             }
         }
     };
 
     result.into()
-}
-
-struct ComponentArg {
-    name: Ident,
-    ty: Type,
-}
-
-impl Parse for ComponentArg {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let name: Ident = input.parse()?;
-        input.parse::<Token![:]>()?;
-        let ty: Type = input.parse()?;
-        Ok(ComponentArg { name, ty })
-    }
-}
-
-struct Fields {
-    segments: Punctuated<ComponentArg, Token![,]>,
-}
-
-impl Parse for Fields {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let mut segments = Punctuated::new();
-
-        segments.push_value(input.parse::<ComponentArg>()?);
-
-        while input.peek(Token![,]) {
-            segments.push_punct(input.parse()?);
-            segments.push_value(input.parse::<ComponentArg>()?);
-        }
-
-        Ok(Fields { segments })
-    }
 }
